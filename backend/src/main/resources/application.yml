@@ -1,0 +1,73 @@
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: none
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-exception: false
+    whitelabel:
+      enabled: false
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: true
+        same-site: strict
+
+spring:
+  application:
+    name: laorvia-api
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+      timeout: 5s
+      ssl:
+        enabled: ${REDIS_SSL:false}
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+laorvia:
+  session:
+    ttl-days: 30
+  security:
+    # 32-byte base64 Key Encryption Key. Supply from a secret manager / KMS. Never commit.
+    kek: ${LAORVIA_SECURITY_KEK:}
+    # Long random pepper for IP / device / user-agent binding hashes.
+    ip-pepper: ${LAORVIA_SECURITY_IP_PEPPER:}
+    allow-ephemeral-kek: ${LAORVIA_ALLOW_EPHEMERAL_KEK:false}
+    demo-login-enabled: ${LAORVIA_DEMO_LOGIN:false}
+    tls-required: ${LAORVIA_TLS_REQUIRED:true}
+    trusted-proxy-count: ${LAORVIA_TRUSTED_PROXY_COUNT:0}
+    ip-binding-mode: ${LAORVIA_IP_BINDING_MODE:STRICT}
+    key-ttl-seconds: 1800
+    clock-skew-seconds: 60
+    max-body-bytes: 262144
+    requests-per-minute-per-ip: 240
+    requests-per-minute-per-key: 600
+    handshakes-per-minute-per-ip: 30
+    bootstrap-per-minute-per-ip: 12
+    auth-per-minute-per-ip: 20
+    login-max-failures: 5
+    login-lock-minutes: 15
+    allowed-origins: ${LAORVIA_ALLOWED_ORIGINS:https://laorvia.com,https://www.laorvia.com,http://localhost:5173,http://localhost:4173}
+
+logging:
+  level:
+    root: INFO
+    com.laorvia.api.security: INFO
+  pattern:
+    console: "%d{ISO8601} %-5level [%X{requestId:-}] %logger{36} - %msg%n"

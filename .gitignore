@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.shots/
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/target/
+*.log
+.DS_Store
+.idea/
+.vscode/

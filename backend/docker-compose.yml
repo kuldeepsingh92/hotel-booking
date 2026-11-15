@@ -1,0 +1,79 @@
+# LOCAL DEMO STACK ONLY.
+# This file deliberately relaxes TLS + KMS requirements so the demo runs on
+# http://localhost. Production MUST use the `prod` profile, real secrets from a
+# KMS/secret manager, TLS termination, Redis ACL + TLS, and no public Redis port.
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: laorvia-redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-local-demo-redis-only}
+      # Never allow destructive admin commands from the API host in production.
+      - --rename-command
+      - FLUSHALL
+      - ""
+      - --rename-command
+      - FLUSHDB
+      - ""
+      - --rename-command
+      - CONFIG
+      - ""
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - laorvia_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-local-demo-redis-only} ping | grep PONG"]
+      interval: 3s
+      timeout: 3s
+      retries: 12
+
+  redis-seed:
+    image: node:22-alpine
+    container_name: laorvia-redis-seed
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-local-demo-redis-only}
+    volumes:
+      - ../scripts:/scripts:ro
+    command: ["node", "/scripts/seed-redis.mjs"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laorvia-api
+    depends_on:
+      redis:
+        condition: service_healthy
+      redis-seed:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-local-demo-redis-only}
+      # Demo-only relaxations — NEVER copy these to production.
+      LAORVIA_ALLOW_EPHEMERAL_KEK: "true"
+      LAORVIA_SECURITY_KEK: ${LAORVIA_SECURITY_KEK:-}
+      LAORVIA_SECURITY_IP_PEPPER: ${LAORVIA_SECURITY_IP_PEPPER:-local-demo-pepper-change-me-please}
+      LAORVIA_TLS_REQUIRED: "false"
+      LAORVIA_DEMO_LOGIN: "true"
+      LAORVIA_TRUSTED_PROXY_COUNT: "0"
+      LAORVIA_IP_BINDING_MODE: STRICT
+      LAORVIA_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:4173,http://localhost:8080
+
+volumes:
+  laorvia_redis_data:
